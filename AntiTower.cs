@@ -1,4 +1,4 @@
-﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -10,27 +10,44 @@ namespace AntiTower;
 public class AntiTower : BasePlugin
 {
     public override string ModuleName => "AntiTower";
+    public override string ModuleAuthor => "v4r1able (adapted by zaadrot.uz)";
+    public override string ModuleDescription => "Prevents players from climbing a blocked ladder/tower on a specific map";
+    public override string ModuleVersion => "1.1.0";
 
-    public override string ModuleAuthor => "v4r1able";
-    public override string ModuleDescription => "Prevents players from climbing the tower in awp_lego_2 map";
-    public override string ModuleVersion => "1.0.0";
+    private const string TargetMap = "awp_lego_2";
 
-    private readonly Vector triggerPosition = new Vector(-43.303169f, 12.203090f, -189.015625f);
+    // Триггер-зона (запретное место на лестнице)
+    private readonly Vector triggerPosition = new Vector(1709.369263f, 245.855865f, 64.671875f);
     private readonly float triggerRadius = 30f;
 
-    private readonly Vector targetPosition = new Vector(-41.086075f, 44.352432f, -243.128754f);
-    private readonly QAngle targetAngle = new QAngle(10.002346f, -89.681366f, 0.0f);
+    // Куда телепортировать игрока (чуть ниже верха, "до запрета")
+    private readonly Vector targetPosition = new Vector(1704.664185f, 244.116699f, 82.937500f);
+    private readonly QAngle targetAngle = new QAngle(23.095661f, -84.417412f, 0.0f);
+
+    private bool isOnTargetMap = false;
 
     public override void Load(bool hotReload)
     {
+        isOnTargetMap = string.Equals(Server.MapName, TargetMap, StringComparison.OrdinalIgnoreCase);
+
+        RegisterListener<Listeners.OnMapStart>(mapName =>
+        {
+            isOnTargetMap = string.Equals(mapName, TargetMap, StringComparison.OrdinalIgnoreCase);
+        });
+
         RegisterListener<Listeners.OnTick>(() =>
         {
+            if (!isOnTargetMap)
+                return;
+
             foreach (var player in Utilities.GetPlayers())
             {
                 if (player == null || !player.IsValid || player.PlayerPawn == null || !player.PawnIsAlive)
                     continue;
 
                 var pos = player.PlayerPawn.Value.AbsOrigin;
+                if (pos == null)
+                    continue;
 
                 if (CalculateDistance(pos, triggerPosition) <= triggerRadius)
                 {
